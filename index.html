@@ -482,6 +482,8 @@
     };
 
     const DEFAULT_USERS = ['Shreyan', 'Himanshi', 'Ayushi', 'Sarvanan'];
+    const ADMIN_NAME = 'Shreyan';
+    const RESET_PIN = '2468'; // change this to your own private PIN
     const DEFAULT_TASKS = [
       { id: 'living-room', name: 'Living Room Cleaning', icon: '🛋️' },
       { id: 'house', name: 'House Cleaning', icon: '🏠' },
@@ -610,6 +612,18 @@
     }
 
     async function resetWeek() {
+      const enteredName = window.prompt('Enter admin name to reset all queues:');
+      if (enteredName !== ADMIN_NAME) {
+        window.alert('Only the admin can reset the queues.');
+        return;
+      }
+
+      const enteredPin = window.prompt('Enter your reset PIN:');
+      if (enteredPin !== RESET_PIN) {
+        window.alert('Incorrect PIN. Reset cancelled.');
+        return;
+      }
+
       const confirmed = window.confirm('Reset all queues and set dates to today?');
       if (!confirmed) return;
       await saveData(createInitialState());
@@ -748,8 +762,8 @@
         </section>
 
         <div class="footer-actions">
-          <button class="reset-btn" id="resetBtn">Reset all queues for today</button>
-          <div class="note">Any update made here is shared live with everyone using the same link.</div>
+          <button class="reset-btn" id="resetBtn">Admin reset all queues for today</button>
+          <div class="note">Any update made here is shared live with everyone using the same link. Reset is restricted to the admin only.</div>
         </div>
       `;
 
@@ -794,3 +808,4 @@
   </script>
 </body>
 </html>
+
