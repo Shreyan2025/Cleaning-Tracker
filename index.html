@@ -275,6 +275,11 @@
       cursor: pointer;
     }
 
+    .queue-item.is-user {
+      border-color: var(--user-color);
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--user-color) 12%, transparent);
+    }
+
     .queue-item:hover {
       transform: translateY(-1px);
       box-shadow: var(--shadow-soft);
@@ -311,6 +316,17 @@
       color: var(--success);
     }
 
+    .you-pill {
+      display: inline-flex;
+      margin-left: 8px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.08);
+      font-size: 10px;
+      font-weight: 800;
+      vertical-align: middle;
+    }
+
     .person-name {
       font-weight: 700;
       font-size: 15px;
@@ -339,6 +355,10 @@
     .radio-wrap {
       position: relative;
       flex-shrink: 0;
+    }
+
+    .radio-wrap input:disabled {
+      cursor: not-allowed;
     }
 
     .radio-wrap input {
@@ -424,6 +444,54 @@
       font-weight: 600;
     }
 
+    .identity-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .identity-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.78);
+      border-radius: 20px;
+      padding: 14px 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      font: inherit;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .identity-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-soft);
+      border-color: var(--user-color);
+    }
+
+    .identity-card.active {
+      background: linear-gradient(135deg, var(--user-soft), rgba(255,255,255,0.92));
+      border-color: var(--user-color);
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--user-color) 14%, transparent);
+    }
+
+    .identity-emoji {
+      font-size: 20px;
+    }
+
+    .identity-name {
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .identity-state {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
     .loading-card {
       background: rgba(255,255,255,0.88);
       border: 1px solid var(--line);
@@ -482,6 +550,12 @@
     };
 
     const DEFAULT_USERS = ['Shreyan', 'Himanshi', 'Ayushi', 'Sarvanan'];
+    const USER_STYLES = {
+      Shreyan: { color: '#2563eb', soft: 'rgba(37, 99, 235, 0.14)', emoji: '🟦' },
+      Himanshi: { color: '#db2777', soft: 'rgba(219, 39, 119, 0.14)', emoji: '🩷' },
+      Ayushi: { color: '#7c3aed', soft: 'rgba(124, 58, 237, 0.14)', emoji: '🟪' },
+      Sarvanan: { color: '#ea580c', soft: 'rgba(234, 88, 12, 0.14)', emoji: '🟧' },
+    };
     const ADMIN_NAME = 'Shreyan';
     const RESET_PIN = '2468'; // change this to your own private PIN
     const DEFAULT_TASKS = [
@@ -547,6 +621,7 @@
 
     let db;
     let state = createInitialState();
+    let currentUser = localStorage.getItem('cleaningTrackerCurrentUser') || '';
 
     function escapeHtml(str) {
       return String(str)
@@ -555,6 +630,16 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function setCurrentUser(name) {
+      currentUser = name;
+      localStorage.setItem('cleaningTrackerCurrentUser', name);
+      render();
+    }
+
+    function getUserStyle(name) {
+      return USER_STYLES[name] || { color: '#2563eb', soft: 'rgba(37,99,235,0.14)', emoji: '👤' };
     }
 
     function countActiveTasks() {
@@ -631,13 +716,17 @@
 
     function renderQueueItem({ name, index, inputName, action, taskId = '', nextLabel = 'Next in line' }) {
       const next = index === 0;
+      const style = getUserStyle(name);
+      const isCurrentUser = currentUser === name;
+      const canAct = !!currentUser && isCurrentUser;
       return `
-        <label class="queue-item ${next ? 'next-up' : ''}">
+        <label class="queue-item ${next ? 'next-up' : ''} ${isCurrentUser ? 'is-user' : ''}" style="--user-color:${escapeHtml(style.color)}; --user-soft:${escapeHtml(style.soft)};">
           <div class="person">
-            <div class="rank">${index + 1}</div>
+            <div class="rank" style="background:${escapeHtml(style.soft)}; color:${escapeHtml(style.color)};">${index + 1}</div>
             <div>
-              <div class="person-name">${escapeHtml(name)}</div>
+              <div class="person-name">${escapeHtml(style.emoji)} ${escapeHtml(name)} ${isCurrentUser ? '<span class="you-pill">You</span>' : ''}</div>
               ${next ? `<div class="next-badge">● ${escapeHtml(nextLabel)}</div>` : `<div class="helper">Moves to the bottom after completion</div>`}
+              ${!canAct ? `<div class="helper">Only ${currentUser ? 'your own name' : 'selected user'} can be tapped</div>` : ''}
             </div>
           </div>
           <div class="radio-wrap">
@@ -648,6 +737,7 @@
               data-action="${escapeHtml(action)}"
               ${taskId ? `data-task-id="${escapeHtml(taskId)}"` : ''}
               data-user="${escapeHtml(name)}"
+              ${canAct ? '' : 'disabled'}
             />
           </div>
         </label>
@@ -705,6 +795,18 @@
         nextLabel: 'Next for bins'
       })).join('');
 
+      const identityCards = DEFAULT_USERS.map((name) => {
+        const style = getUserStyle(name);
+        const active = currentUser === name;
+        return `
+          <button class="identity-card ${active ? 'active' : ''}" data-action="identity" data-user="${escapeHtml(name)}" style="--user-color:${escapeHtml(style.color)}; --user-soft:${escapeHtml(style.soft)};">
+            <span class="identity-emoji">${escapeHtml(style.emoji)}</span>
+            <span class="identity-name">${escapeHtml(name)}</span>
+            <span class="identity-state">${active ? 'Selected' : 'Tap to use as ' + escapeHtml(name)}</span>
+          </button>
+        `;
+      }).join('');
+
       appEl.innerHTML = `
         <section class="hero">
           <div class="hero-top">
@@ -724,6 +826,20 @@
               <div class="stat-value">${escapeHtml(getNextBinsPerson())}</div>
             </div>
           </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div class="panel-title-wrap">
+              <div class="icon-chip icon-green">👤</div>
+              <div>
+                <h2>Who is using the app?</h2>
+                <div class="subtitle">Choose your identity once. After that, only your own name can be tapped.</div>
+              </div>
+            </div>
+            <div class="pill pill-success">${currentUser ? 'Active' : 'Required'}</div>
+          </div>
+          <div class="identity-grid">${identityCards}</div>
         </section>
 
         <section class="panel">
@@ -767,6 +883,10 @@
         </div>
       `;
 
+      document.querySelectorAll('[data-action="identity"]').forEach((el) => {
+        el.addEventListener('click', (e) => setCurrentUser(e.currentTarget.dataset.user));
+      });
+
       document.querySelectorAll('input[data-action="cleaning"]').forEach((el) => {
         el.addEventListener('change', (e) => completeCleaning(e.target.dataset.taskId, e.target.dataset.user));
       });
@@ -808,4 +928,5 @@
   </script>
 </body>
 </html>
+
 
