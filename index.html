@@ -549,7 +549,7 @@
       measurementId: "G-WWEJNFQHDY"
     };
 
-    const DEFAULT_USERS = ['Shreyan', 'Himanshi', 'Ayushi', 'Sarvanan'];
+    const DEFAULT_USERS = ['Ayushi', 'Sarvanan', 'Himanshi', 'Shreyan'];
     const USER_STYLES = {
       Shreyan: { color: '#2563eb', soft: 'rgba(37, 99, 235, 0.14)', emoji: '🟦' },
       Himanshi: { color: '#db2777', soft: 'rgba(219, 39, 119, 0.14)', emoji: '🩷' },
@@ -598,8 +598,25 @@
       return `${formatDate(startDate)} – ${formatDate(end)}`;
     }
 
+    function addDays(dateString, days) {
+      const date = new Date(dateString);
+      date.setDate(date.getDate() + days);
+      return formatDateInputValue(date);
+    }
+
+    function formatDisplayDate(dateString) {
+      if (!dateString) return '—';
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit'
+      }).format(date);
+    }
+
     function createInitialState() {
-      const today = formatDateInputValue(new Date());
+      const lastCompletedDate = '2026-03-23';
+      const nextCycleDate = addDays(lastCompletedDate, 7);
       return {
         weekStart: getStartOfWeek().toISOString(),
         cleaningQueues: DEFAULT_TASKS.reduce((acc, task) => {
@@ -607,14 +624,15 @@
             name: task.name,
             icon: task.icon,
             queue: [...DEFAULT_USERS],
-            date: today,
-            lastDoneBy: ''
+            date: nextCycleDate,
+            lastDoneBy: 'Shreyan',
+            lastUpdatedAt: lastCompletedDate
           };
           return acc;
         }, {}),
         binQueue: [...DEFAULT_USERS],
-        lastBinCompletedBy: '',
-        lastBinCompletedOn: '',
+        lastBinCompletedBy: 'Shreyan',
+        lastBinCompletedOn: lastCompletedDate,
         updatedAt: new Date().toISOString()
       };
     }
@@ -659,6 +677,8 @@
     async function completeCleaning(taskId, user) {
       const task = state.cleaningQueues[taskId];
       const newQueue = [...task.queue.filter((u) => u !== user), user];
+      const updatedDate = formatDateInputValue(new Date());
+      const nextCycleDate = addDays(updatedDate, 7);
       await saveData({
         ...state,
         cleaningQueues: {
@@ -667,7 +687,8 @@
             ...task,
             queue: newQueue,
             lastDoneBy: user,
-            date: formatDateInputValue(new Date())
+            lastUpdatedAt: updatedDate,
+            date: nextCycleDate
           }
         }
       });
@@ -682,17 +703,19 @@
             ...state.cleaningQueues[taskId],
             date: value
           }
+          }
         }
       });
     }
 
     async function completeBins(user) {
       const newQueue = [...state.binQueue.filter((name) => name !== user), user];
+      const updatedDate = formatDateInputValue(new Date());
       await saveData({
         ...state,
         binQueue: newQueue,
         lastBinCompletedBy: user,
-        lastBinCompletedOn: formatDate(new Date())
+        lastBinCompletedOn: updatedDate
       });
     }
 
@@ -771,7 +794,7 @@
             </div>
 
             <div class="date-wrap">
-              <div class="date-label">Date</div>
+              <div class="date-label">Next clean</div>
               <input type="date" value="${escapeHtml(task.date)}" data-action="date" data-task-id="${escapeHtml(taskId)}" />
             </div>
 
@@ -779,10 +802,14 @@
 
             ${task.lastDoneBy ? `
               <div class="last-line">
-                <span>Last completed by <strong>${escapeHtml(task.lastDoneBy)}</strong></span>
-                <span>${escapeHtml(task.date)}</span>
+                <span>Last updated by <strong>${escapeHtml(task.lastDoneBy)}</strong></span>
+                <span>${escapeHtml(formatDisplayDate(task.lastUpdatedAt || ''))}</span>
               </div>
             ` : ''}
+            <div class="last-line">
+              <span>Next cleaning cycle</span>
+              <span><strong>${escapeHtml(formatDisplayDate(task.date))}</strong></span>
+            </div>
           </section>
         `;
       }).join('');
@@ -871,8 +898,8 @@
           <div class="queue-list">${binsHtml}</div>
           ${state.lastBinCompletedBy ? `
             <div class="last-line">
-              <span>Last completed by <strong>${escapeHtml(state.lastBinCompletedBy)}</strong></span>
-              <span>${escapeHtml(state.lastBinCompletedOn || '')}</span>
+              <span>Last updated by <strong>${escapeHtml(state.lastBinCompletedBy)}</strong></span>
+              <span>${escapeHtml(formatDisplayDate(state.lastBinCompletedOn || ''))}</span>
             </div>
           ` : ''}
         </section>
@@ -928,5 +955,3 @@
   </script>
 </body>
 </html>
-
-
